@@ -18,7 +18,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, ElementNotVisibleException
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
@@ -38,28 +38,54 @@ class WhatsApp:
     This class is used to interact with your whatsapp [UNOFFICIAL API]
     """
     emoji = {}  # This dict will contain all emojies needed for chatting
-    browser = webdriver.Chrome()  # we are using chrome as our webbrowser
+    # browser = webdriver.Chrome()  # we are using chrome as our webbrowser
+    
+    # connect to specific instance of chrome (curently this is done via a textfile called info.txt)
+    with open("info.txt") as f:
+        mylist = f.read().splitlines() 
+
+    print("teeeeeeeeeeeepa")
+
+    url=mylist[0]
+    session_id=mylist[1]
+
+    print(url)
+    print(session_id)
+
+   
+
+    browser = webdriver.Remote(command_executor=url,desired_capabilities={})
+    browser.session_id = session_id
+    print("hello teepa"+url+"<--url| session_id--> "+session_id)
     timeout = 10  # The timeout is set for about ten seconds
 
     # This constructor will load all the emojies present in the json file and it will initialize the webdriver
-    def __init__(self, wait, screenshot=None):
-        self.browser.get("https://web.whatsapp.com/")
-        # emoji.json is a json file which contains all the emojis
-        with open("emoji.json") as emojies:
-            self.emoji = json.load(emojies)  # This will load the emojies present in the json file into the dict
-        WebDriverWait(self.browser,wait).until(EC.presence_of_element_located(
-            (By.CSS_SELECTOR, '.jN-F5')))
-        if screenshot is not None:
-            self.browser.save_screenshot(screenshot)  # This will save the screenshot to the specified file location
+    # *Edited by beevabeeva*: Takes in browser parameter. If none given then it will create an instance of chrome (like it did in original code).
+    # If you do supply browser arguemnt, it will try connect to an already running instance of chrome, so you don't have to keep scanning the QR code everytime your script runs,
+    # which IMO made the original code pretty useless...
+    # def __init__(self, wait, screenshot=None):
+
+        
+
+    #     # self.browser.get("https://web.whatsapp.com/")
+    #     # emoji.json is a json file which contains all the emojis
+    #     with open("emoji.json") as emojies:
+    #         self.emoji = json.load(emojies)  # This will load the emojies present in the json file into the dict
+    #     WebDriverWait(self.browser,wait).until(EC.presence_of_element_located(
+    #         (By.CSS_SELECTOR, '._2zCfw')))
+    #     if screenshot is not None:
+    #         self.browser.save_screenshot(screenshot)  # This will save the screenshot to the specified file location
+
+
 
     # This method is used to send the message to the individual person or a group
     # will return true if the message has been sent, false else
     def send_message(self, name, message):
         message = self.emojify(message)  # this will emojify all the emoji which is present as the text in string
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(name+Keys.ENTER)  # we will send the name to the input key box
         try:
-            send_msg = WebDriverWait(self.browser, self.timeout).until(EC.presence_of_element_located(
+            send_msg = WebDriverWait(browser, self.timeout).until(EC.presence_of_element_located(
                 (By.XPATH, "/html/body/div/div/div/div[4]/div/footer/div[1]/div[2]/div/div[2]")))
             messages = message.split("\n")
             for msg in messages:
@@ -76,7 +102,7 @@ class WhatsApp:
 
     # This method will count the no of participants for the group name provided
     def participants_count_for_group(self, group_name):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(group_name+Keys.ENTER)  # we will send the name to the input key box
         # some say this two try catch below can be grouped into one
         # but I have some version specific issues with chrome [Other element would receive a click]
@@ -84,7 +110,7 @@ class WhatsApp:
         # it is handled safely
         try:
             click_menu = WebDriverWait(self.browser,self.timeout).until(EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "#main > header > div._1WBXd > div._2EbF- > div > span")))
+                (By.CSS_SELECTOR, "._19vo_ > span:nth-child(1)")))
             click_menu.click()
         except TimeoutException:
             raise TimeoutError("Your request has been timed out! Try overriding timeout!")
@@ -93,7 +119,7 @@ class WhatsApp:
         except Exception as e:
             return "None"
         current_time = dt.datetime.now()
-        participants_selector = "#app > div > div > div.MZIyP > div._3q4NP._2yeJ5 > span > div > span > div > div > div > div:nth-child(5) > div._2VQzd > div > div > div > span"
+        participants_selector = "div._2LSbZ:nth-child(5) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)"
         while True:
             try:
                 participants_count = self.browser.find_element_by_css_selector(participants_selector).text
@@ -109,7 +135,7 @@ class WhatsApp:
     # This method is used to get all the participants
     def get_group_participants(self, group_name):
         self.participants_count_for_group(group_name)
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(group_name+Keys.ENTER)  # we will send the name to the input key box
         # some say this two try catch below can be grouped into one
         # but I have some version specific issues with chrome [Other element would receive a click]
@@ -170,14 +196,14 @@ class WhatsApp:
         except Exception as e:
             print(e)
         WebDriverWait(self.browser, self.timeout).until(EC.presence_of_element_located(
-            (By.CSS_SELECTOR, '.jN-F5')))
+            (By.CSS_SELECTOR, '._2zCfw')))
 
         
 
     # get the status message of a person
     # TimeOut is approximately set to 10 seconds
     def get_status(self, name):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(name+Keys.ENTER)  # we will send the name to the input key box
         try:
             group_xpath = "/html/body/div/div/div/div[3]/header/div[1]/div/span/img"
@@ -211,9 +237,9 @@ class WhatsApp:
 
     # to get the last seen of the person
     def get_last_seen(self, name, timeout=10):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(name+Keys.ENTER)  # we will send the name to the input key box
-        last_seen_css_selector = ".O90ur"
+        last_seen_css_selector = "._315-i"
         start_time = dt.datetime.now()
         try:
             WebDriverWait(self.browser,self.timeout).until(EC.presence_of_element_located(
@@ -255,23 +281,32 @@ class WhatsApp:
     # This method will send you the picture
     # This is a windows specific function, somebody PR for Mac and Linux
     def send_picture(self, name, picture_location, caption=None):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(name+Keys.ENTER)  # we will send the name to the input key box
         try:
-            self.browser.find_element_by_xpath("/html/body/div/div/div/div[3]/div/header/div[3]/div/div[2]/div/span").click()
-        except NoSuchElementException:
-            return "Unable to Locate the element"
-        pyautogui.press("down")
-        pyautogui.press("enter")
-        pyautogui.typewrite(picture_location)
-        pyautogui.press("enter")
-        try:
-            if caption is not None:
-                message = self.browser.find_element_by_xpath("/html/body/div/div/div/div[1]/div[2]/span/div/span/div/div/div[2]/div/span/div/div[2]/div/div[3]/div[1]/div[2]")
-                message.send_keys(caption)
-            self.browser.find_element_by_xpath("/html/body/div/div/div/div[1]/div[2]/span/div/span/div/div/div[2]/span[2]/div/div/span").click()
-        except NoSuchElementException:
-            return "Cannot Send the picture"
+            attach_xpath = '//*[@id="main"]/header/div[3]/div/div[2]/div'
+            send_file_xpath = '/html/body/div[1]/div/div/div[2]/div[2]/span/div/span/div/div/div[2]/span[2]/div/div/span'
+            attach_type_xpath = '/html/body/div[1]/div/div/div[4]/div/header/div[3]/div/div[2]/span/div/div/ul/li[1]/button/input'
+            # open attach menu
+            attach_btn = self.browser.find_element_by_xpath(attach_xpath)
+            attach_btn.click()
+
+            # Find attach file btn and send screenshot path to input
+            time.sleep(1)
+            attach_img_btn = self.browser.find_element_by_xpath(attach_type_xpath)
+
+            # TODO - might need to click on transportation mode if url doesn't work
+            attach_img_btn.send_keys(picture_location)           # get current script path + img_path
+            time.sleep(1)
+            if caption:
+                caption_xpath = "/html/body/div[1]/div/div/div[2]/div[2]/span/div/span/div/div/div[2]/div/span/div/div[2]/div/div[3]/div[1]/div[2]"
+                send_caption = self.browser.find_element_by_xpath(caption_xpath)
+                send_caption.send_keys(caption)
+            send_btn = self.browser.find_element_by_xpath(send_file_xpath)
+            send_btn.click()
+
+        except (NoSuchElementException, ElementNotVisibleException) as e:
+            print(str(e))
 
 
     # override the timeout
@@ -285,7 +320,7 @@ class WhatsApp:
         return message
 
     def get_profile_pic(self, name):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(name+Keys.ENTER)
         try:
             open_profile = WebDriverWait(self.browser,self.timeout).until(EC.presence_of_element_located(
@@ -337,11 +372,11 @@ class WhatsApp:
 
     # This method is used to get an invite link for a particular group
     def get_invite_link_for_group(self, groupname):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(groupname+Keys.ENTER)
-        self.browser.find_element_by_css_selector("._2zCDG > span:nth-child(1)").click()
+        self.browser.find_element_by_css_selector("#main > header > div._5SiUq > div._16vzP > div > span").click()
         try:
-            time.sleep(3)
+            #time.sleep(3)
             WebDriverWait(self.browser, self.timeout).until(EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "#app > div > div > div.MZIyP > div._3q4NP._2yeJ5 > span > div > span > div > div > div > div:nth-child(5) > div:nth-child(3) > div._3j7s9 > div > div")))
             invite_link = self.browser.find_element_by_css_selector("#app > div > div > div.MZIyP > div._3q4NP._2yeJ5 > span > div > span > div > div > div > div:nth-child(5) > div:nth-child(3) > div._3j7s9 > div > div")
@@ -355,7 +390,7 @@ class WhatsApp:
 
     # This method is used to exit a group
     def exit_group(self, group_name):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(group_name+Keys.ENTER)
         self.browser.find_element_by_css_selector("._2zCDG > span:nth-child(1)").click()
         WebDriverWait(self.browser, self.timeout).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div._1CRb5:nth-child(6) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > span:nth-child(1)")))
@@ -384,7 +419,7 @@ class WhatsApp:
 
     # Check if the message is present in an user chat
     def is_message_present(self, username, message):
-        search = self.browser.find_element_by_css_selector(".jN-F5")
+        search = self.browser.find_element_by_css_selector("._2zCfw")
         search.send_keys(username+Keys.ENTER)
         search_bar = WebDriverWait(self.browser, self.timeout).until(EC.presence_of_element_located((By.CSS_SELECTOR, "._1i0-u > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)")))
         search_bar.click()
@@ -397,6 +432,45 @@ class WhatsApp:
         except TimeoutException:
             return False
 
+    # Get all starred messages
+    def get_starred_messages(self, delay=10):
+        starred_messages = []
+        self.browser.find_element_by_css_selector("div.rAUz7:nth-child(3) > div:nth-child(1) > span:nth-child(1)").click()
+        chains = ActionChains(self.browser)
+        time.sleep(2)
+        for i in range(4):
+            chains.send_keys(Keys.ARROW_DOWN)
+        chains.send_keys(Keys.ENTER)
+        chains.perform()
+        time.sleep(delay)
+        messages = self.browser.find_elements_by_class_name("MS-DH")
+        for message in messages:
+            try:
+                message_html = message.get_attribute("innerHTML")
+                soup = BeautifulSoup(message_html, "html.parser")
+                _from = soup.find("span", class_="_1qUQi")["title"]
+                to = soup.find("div", class_="copyable-text")["data-pre-plain-text"]
+                message_text = soup.find("span", class_="selectable-text invisible-space copyable-text").text
+                message.click()
+                selector = self.browser.find_element_by_css_selector("#main > header > div._5SiUq > div._16vzP > div > span")
+                title = selector.text
+                selector.click()
+                time.sleep(2)
+                WebDriverWait(self.browser, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div._14oqx:nth-child(3) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1) > span:nth-child(1)")))
+                phone = self.browser.find_element_by_css_selector("div._14oqx:nth-child(3) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1) > span:nth-child(1)").text
+                if title in _from:
+                    _from = _from.replace(title, phone)
+                else:
+                    to = to.replace(title, phone)
+                starred_messages.append([_from, to, message_text])
+            except Exception as e:
+                print("Handled: ", e)
+        return starred_messages
+            
+
     # This method is used to quit the browser
     def quit(self):
-        self.browser.quit()
+        browser.quit()
+
+    def close(browser):
+        browser.close()
